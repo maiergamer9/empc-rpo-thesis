@@ -13,4 +13,8 @@ a = 6771000;                    % Semi-major axis [m] (400km altitude of ISS)
 e = 0;                          % eccentricity [-] (circular orbit, assumption for HCW)
 i = deg2rad(51.6);              % Inclination [rad] (ISS)
 
+%% Derived Parameters
+T = 2*pi*sqrt(a^3/mu);          % Orbital Period [s]
+alt = a - R_earth;              % Altitude above surface [m]
 
+n = sqrt(m/a^3);                % Mean motion [rad/s], for HCW 
