@@ -15,4 +15,13 @@ function dX = two_body(X, mu)
 % Output:
 %   dX - time derivative of the state [vx; vy; vz; ax; ay; az]
 
-r = X(1:3);
+r = X(1:3);         % Position
+v = X(4:6);         % Velocity
+
+r_norm = norm(r);
+
+% Newton's inertial equations of motion
+a = -mu * r / r_norm^3;
+
+% time-derivative of the state
+dX = [v;a];
