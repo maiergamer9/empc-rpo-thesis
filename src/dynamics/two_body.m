@@ -21,7 +21,9 @@ v = X(4:6);         % Velocity
 r_norm = norm(r);
 
 % Newton's inertial equations of motion
-a = -mu * r / r_norm^3;
+a = -mu * r / r_norm^3;         % gravitational acceleration [m/s^2]
 
 % time-derivative of the state
-dX = [v;a];
+dX = [v; a];
+
+end
