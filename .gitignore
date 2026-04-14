@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# MATLAB auto-generated
+*.asv
+*.m~
+slprj/
+*.slxc
+*.slx.autosave
+
+# Results (optional)
+results/figures/*.png
+results/figures/*.pdf
+
+# IDE
+.vscode/
