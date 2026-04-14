@@ -17,4 +17,4 @@ i = deg2rad(51.6);              % Inclination [rad] (ISS)
 T = 2*pi*sqrt(a^3/mu);          % Orbital Period [s]
 alt = a - R_earth;              % Altitude above surface [m]
 
-n = sqrt(m/a^3);                % Mean motion [rad/s], for HCW 
+n = sqrt(mu/a^3);                % Mean motion [rad/s], for HCW 
