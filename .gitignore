@@ -15,3 +15,6 @@ results/figures/*.pdf
 
 # IDE
 .vscode/
+
+# MATLAB Project
+resources/
