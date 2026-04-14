@@ -30,5 +30,10 @@ x0 = [rx0; ry0; rz0; vx0; vy0; vz0];
 
 %% Integration
 
+f = @(X) two_body(X, mu);
+X = rk4_integrator(f, x0, dt, N);
 
-X = rk4_integrator(f, x0, dt, N)
+%% Plot
+figure;
+plot3(X(1,:)/1000, X(2,:)/1000, X(3,:)/1000, 'b', 'LineWidth', 1.5);
+hold on;
