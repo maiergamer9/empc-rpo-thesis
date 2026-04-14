@@ -7,6 +7,10 @@ clear; clc; close all;
 %% Load Constants
 constants;
 
+%% Simulation Parameters
+dt = 10;
+N = T/dt;
+
 %% Initial conditions
 
 % position
@@ -27,3 +31,4 @@ x0 = [rx0; ry0; rz0; vx0; vy0; vz0];
 %% Integration
 
 
+X = rk4_integrator(f, x0, dt, N)
