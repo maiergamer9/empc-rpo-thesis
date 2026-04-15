@@ -1,4 +1,4 @@
-function [r_t, r_t_dot, theta_dot, theta_ddot] = target_kinematics(X_t, mu)
+function [r_t, r_t_dot, theta_dot, theta_ddot] = target_kinematics(X_t)
 % target_kinematics
 % Extracts orbital kinematics of the target spacecraft from its ECI state.
 % Required by the relative equations of motion in the Hill frame.
