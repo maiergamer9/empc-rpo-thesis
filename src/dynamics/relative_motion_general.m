@@ -1,6 +1,23 @@
 function dRho = relative_motion_general(Rho, X_t, mu)
 % relative_motion_general
 % Computes relative EoMS in Hill frame for an elliptic target orbit.
+%
+% ASSUMPTIONS:
+%   1. |rho| << r_t  (chaser-target separation small vs target orbit radius)
+%   2. No assumption on target orbit shape (valid for elliptic orbits)
+%
+% Equations of motion (Schaub Chapter 14, no control input):
+%   x_ddot = 2*theta_dot*y_dot + theta_ddot*y + (theta_dot^2 + 2*mu/r_t^3)*x
+%   y_ddot = -2*theta_dot*x_dot - theta_ddot*x + (theta_dot^2 - mu/r_t^3)*y
+%   z_ddot = -(mu/r_t^3)*z
+%
+% Input:
+%   Rho  - relative state [x; y; z; x_dot; y_dot; z_dot] [m, m/s]
+%   X_t  - target ECI state [rx; ry; rz; vx; vy; vz] [m, m/s]
+%   mu   - gravitational parameter [m^3/s^2]
+%
+% Output:
+%   dRho - time derivative [x_dot; y_dot; z_dot; x_ddot; y_ddot; z_ddot]
 
 
 x = Rho(1);
