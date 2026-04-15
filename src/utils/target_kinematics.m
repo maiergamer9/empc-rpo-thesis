@@ -1,4 +1,4 @@
-function [r_t, r_t_dot, theta_dot, theta_ddot] = target_kinematics(X_t)
+function [r_t, r_t_dot, f_dot, f_ddot] = target_kinematics(X_t)
 % target_kinematics
 % Extracts orbital kinematics of the target spacecraft from its ECI state.
 % Required by the relative equations of motion in the Hill frame.
@@ -28,7 +28,7 @@ r_t_dot = dot(r, v) / r_t;                          % Radial velocity
 h_vec = cross(r, v);    
 h = norm(h_vec);                                    % Specific angular momentum
 
-theta_dot = h / r_t^2;                              % True latitude rate
-theta_ddot = -2 * r_t_dot * theta_dot / r_t;        % True latitude acceleration
+f_dot = h / r_t^2;                              % True latitude rate
+f_ddot = -2 * r_t_dot * theta_dot / r_t;        % True latitude acceleration
 
 end
