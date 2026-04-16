@@ -15,7 +15,7 @@ clear all; clc;
 
 %% Configuration (choose CWH/general/nonlinear, to be expanded)
 
-dynamics_model = 'CHW';
+dynamics_model = 'CWH';
 
 %% Constants
 constants;
@@ -73,7 +73,13 @@ Rho(:, 1) = Rho0;
 
 for k = 1:n_steps-1
     X_t_k = X_t(:, k);
-    Rho(:, k+1) = rk4_integrator(@(rho) f_rel(rho, X_t_k), Rho(:,k), dt, 2);
+    f     = @(rho) f_rel(rho, X_t_k);
+    xk    = Rho(:, k);
+    k1    = f(xk);
+    k2    = f(xk + 0.5*dt*k1);
+    k3    = f(xk + 0.5*dt*k2);
+    k4    = f(xk + dt*k3);
+    Rho(:, k+1) = xk + (dt/6)*(k1 + 2*k2 + 2*k3 + k4);
 end
 
 %% Plots
