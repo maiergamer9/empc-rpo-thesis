@@ -15,7 +15,7 @@ clear all; clc;
 
 %% Configuration (choose CWH/general/nonlinear, to be expanded)
 
-dynamics_model = '...';
+dynamics_model = 'CHW';
 
 %% Constants
 constants;
@@ -36,6 +36,18 @@ vy0_t = vc;
 vz0_t = 0;
 
 X_t0 = [rx0_t; ry0_t; rz0_t; vx0_t; vy0_t; vz0_t];
+
+
+%% Chaser initial conditions in Hill frame
+
+x0     =  100;   % [m]   radial offset
+y0     =  200;   % [m]   along-track offset
+z0     =    0;   % [m]   cross-track offset
+x_dot0 =    0;   % [m/s]
+y_dot0 =    0;   % [m/s]
+z_dot0 =    0;   % [m/s]
+
+Rho0 = [x0; y0; z0; x_dot0; y_dot0; z_dot0];
 
 %% Integrate Target Orbit (like in two_body.m)
 
