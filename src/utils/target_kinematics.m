@@ -15,8 +15,8 @@ function [r_t, r_t_dot, f_dot, f_ddot] = target_kinematics(X_t)
 % Output:
 %   r_t       - target orbital radius (scalar) [m]
 %   r_t_dot   - radial velocity dr/dt [m/s]
-%   theta_dot  - true latitude rate dtheta/dt [rad/s]
-%   theta_ddot - true latitude acceleration d²theta/dt² [rad/s^2]
+%   f_dot  - true latitude rate dtheta/dt [rad/s]
+%   f_ddot - true latitude acceleration d²theta/dt² [rad/s^2]
 
 r = X_t(1:3);
 v = X_t(4:6);
@@ -29,6 +29,6 @@ h_vec = cross(r, v);
 h = norm(h_vec);                                    % Specific angular momentum
 
 f_dot = h / r_t^2;                              % True latitude rate
-f_ddot = -2 * r_t_dot * theta_dot / r_t;        % True latitude acceleration
+f_ddot = -2 * r_t_dot * f_dot / r_t;        % True latitude acceleration
 
 end
