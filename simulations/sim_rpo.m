@@ -63,3 +63,21 @@ for k = 1:n_steps-1
     X_t_k = X_t(:, k);
     Rho(:, k+1) = rk4_integrator(@(rho) f_rel(rho, X_t_k), Rho(:,k), dt, 2);
 end
+
+%% Plots
+
+figure;
+subplot(1,2,1);
+plot(Rho(2,:)/1000, Rho(1,:)/1000, 'b', 'LineWidth', 1.5);
+xlabel('Along-track y [km]');
+ylabel('Radial x [km]');
+title(sprintf('Relative Trajectory (%s)', dynamics_model));
+grid on; axis equal;
+
+subplot(1,2,2);
+plot3(Rho(1,:)/1000, Rho(2,:)/1000, Rho(3,:)/1000, 'b', 'LineWidth', 1.5);
+xlabel('Radial x [km]');
+ylabel('Along-track y [km]');
+zlabel('Cross-track z [km]');
+title('3D Relative Trajectory');
+grid on; axis equal;
