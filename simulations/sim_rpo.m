@@ -37,5 +37,24 @@ vz0_t = 0;
 
 X_t0 = [rx0_t; ry0_t; rz0_t; vx0_t; vy0_t; vz0_t];
 
-%% 
+%% Integration of Relative Motion
 
+% Switch Cases between the dynamic models
+switch dynamics_model
+    case 'nonlinear'
+        f_rel = @(...) relative_motion_nonlinear(Rho, X_t_k, mu);
+    case 'general'
+        f_rel = @(...) relative_motion_general(Rho, X_t_k, mu);
+    case 'CWH'
+        f_rel = @(...) clohessy_wiltshire(Rho, n);
+    otherwise
+        error('Unknown dynamics model: %s', dynamics_model);
+end
+
+Rho = zeros(6, n_steps);
+Rho(:, 1) = Rho0;
+
+for k = 1:n_steps-1
+    X_t_k = X_t(:, k);
+    Rho(:, k+1) = rk4_integrator(@(..) f_rel(..), Rho(:,k), dt, 2);
+end
