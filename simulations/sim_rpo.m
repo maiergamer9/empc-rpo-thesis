@@ -44,7 +44,7 @@ x0     =  100;   % [m]   radial offset
 y0     =  200;   % [m]   along-track offset
 z0     =    0;   % [m]   cross-track offset
 x_dot0 =    0;   % [m/s]
-y_dot0 =    0;   % [m/s]
+y_dot0 = -2 * n * x0;  % [m/s]  drift-free condition, bound relative orbit constrained
 z_dot0 =    0;   % [m/s]
 
 Rho0 = [x0; y0; z0; x_dot0; y_dot0; z_dot0];
