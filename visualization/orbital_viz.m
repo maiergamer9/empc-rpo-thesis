@@ -10,7 +10,8 @@ RE = 6378.137;      % Earth mean equatorial radius [km]
 
 %% ── PLAYBACK STATE ───────────────────────────────────────────────────────
 pb_t    = [];       % time vector [s], Nx1
-pb_X    = [];       % state matrix [Nx6], SI units (m, m/s)
+pb_Xt    = [];      % target ECI state   
+pb_Rho   = [];      % chaser LVLH state
 pb_idx  = 1;        % current frame index
 pb_meta = [];       % metadata struct from JSON
 running = false;    % is animation currently playing?
@@ -18,7 +19,7 @@ running = false;    % is animation currently playing?
 pb_tick_acc = 0;        % tick accumulator for real-time pacing
 
 %% ── FIGURE ───────────────────────────────────────────────────────────────
-fig = figure('Name', 'Trajectory Visualizer', ...
+fig = figure('Name', 'RPO Trajectory Visualizer', ...
     'Color', [0.02 0.05 0.09], ...
     'Position', [100 100 1100 650], ...
     'NumberTitle', 'off');
@@ -36,7 +37,7 @@ view(ax3d, 35, 25);
 xlabel(ax3d, 'X (km)', 'FontSize', 7);
 ylabel(ax3d, 'Y (km)', 'FontSize', 7);
 zlabel(ax3d, 'Z (km)', 'FontSize', 7);
-title(ax3d, 'ECI TRAJECTORY VISUALIZER', ...
+title(ax3d, 'RPO / Rendezvous TRAJECTORY VISUALIZER', ...
     'Color', [0 0.78 1], 'FontName', 'Courier New', 'FontSize', 10);
 
 %% ── EARTH ────────────────────────────────────────────────────────────────
@@ -46,30 +47,59 @@ mesh(ax3d, RE*sin(ve).*cos(ue), RE*sin(ve).*sin(ue), RE*cos(ve), ...
     'EdgeAlpha', 0.4, 'FaceAlpha', 0.6);
 
 %% ── PLOT ARTISTS ─────────────────────────────────────────────────────────
-% h_trail = full imported trajectory path (purple dashed)
-h_trail = plot3(ax3d, nan, nan, nan, 'Color', [0.8 0.4 1], ...
-                'LineWidth', 1.2, 'LineStyle', '--');
-% h_sc    = spacecraft dot (orange)
-h_sc    = plot3(ax3d, nan, nan, nan, 'o', 'Color', [1 0.55 0], ...
-                'MarkerFaceColor', [1 0.55 0], 'MarkerSize', 8);
-% h_rad   = radius vector from Earth center to spacecraft
-h_rad   = plot3(ax3d, nan, nan, nan, 'Color', [0.13 0.20 0.27], 'LineWidth', 0.8);
+% Target spacecraft
+h_trail_t = plot3(ax3d, nan, nan, nan, 'Color', [0 0.78 1], ...
+                  'LineWidth', 1.0, 'LineStyle', '-');
+h_sc_t    = plot3(ax3d, nan, nan, nan, 'o', 'Color', [0 0.78 1], ...
+                  'MarkerFaceColor', [0 0.78 1], 'MarkerSize', 8);
+h_rad_t   = plot3(ax3d, nan, nan, nan, 'Color', [0.10 0.25 0.35], 'LineWidth', 0.6);
+ 
+% Chaser spacecraft — orange
+h_trail_c = plot3(ax3d, nan, nan, nan, 'Color', [1 0.55 0], ...
+                  'LineWidth', 1.0, 'LineStyle', '--');
+h_sc_c    = plot3(ax3d, nan, nan, nan, 'o', 'Color', [1 0.55 0], ...
+                  'MarkerFaceColor', [1 0.55 0], 'MarkerSize', 8);
+h_rad_c   = plot3(ax3d, nan, nan, nan, 'Color', [0.30 0.18 0.05], 'LineWidth', 0.6);
+ 
+% Line connecting chaser to target — shows relative distance visually
+h_los = plot3(ax3d, nan, nan, nan, 'Color', [0.8 0.8 0.8], ...
+              'LineWidth', 0.8, 'LineStyle', ':');
+ 
+legend(ax3d, [h_sc_t, h_sc_c], {'Target', 'Chaser'}, ...
+    'TextColor', [0.69 0.80 0.91], 'Color', [0.04 0.07 0.13], ...
+    'EdgeColor', [0.10 0.18 0.28], 'FontSize', 7, 'Location', 'northwest');
 
 %% ── TELEMETRY PANEL ──────────────────────────────────────────────────────
 bg  = [0.02 0.05 0.09];
 dim = [0.29 0.42 0.53];
 blu = [0.00 0.78 1.00];
+org = [1.00 0.55 0.00];
 
-tnames = {'ALTITUDE', 'VELOCITY', 'ELAPSED TIME', 'PERIOD', 'ECCENTRICITY', 'PERIGEE ALT'};
-tx = [0.74 0.74 0.74 0.88 0.88 0.88];
-ty = [0.84 0.72 0.60 0.84 0.72 0.60];
-h_tval = gobjects(1, 6);
-for k = 1:6
-    annotation(fig, 'textbox', [tx(k) ty(k)+0.04 0.12 0.04], ...
-        'String', tnames{k}, 'Color', dim, 'FontName', 'Courier New', ...
+% Target telemetry (left column)
+tnames_t = {'TARGET ALT', 'TARGET VEL', 'PERIOD', 'ELAPSED TIME'};
+tx_t = [0.74 0.74 0.74 0.74];
+ty_t = [0.84 0.72 0.60 0.48];
+h_tval_t = gobjects(1, 4);
+for k = 1:4
+    annotation(fig, 'textbox', [tx_t(k) ty_t(k)+0.04 0.12 0.04], ...
+        'String', tnames_t{k}, 'Color', dim, 'FontName', 'Courier New', ...
         'FontSize', 7, 'EdgeColor', 'none', 'BackgroundColor', bg);
-    h_tval(k) = annotation(fig, 'textbox', [tx(k) ty(k)-0.01 0.12 0.05], ...
+    h_tval_t(k) = annotation(fig, 'textbox', [tx_t(k) ty_t(k)-0.01 0.12 0.05], ...
         'String', '-', 'Color', blu, 'FontName', 'Courier New', ...
+        'FontSize', 11, 'EdgeColor', 'none', 'BackgroundColor', bg);
+end
+ 
+% Chaser / relative telemetry (right column) 
+tnames_c = {'CHASER ALT', 'CHASER VEL', 'REL DISTANCE', 'REL SPEED'};
+tx_c = [0.88 0.88 0.88 0.88];
+ty_c = [0.84 0.72 0.60 0.48];
+h_tval_c = gobjects(1, 4);
+for k = 1:4
+    annotation(fig, 'textbox', [tx_c(k) ty_c(k)+0.04 0.12 0.04], ...
+        'String', tnames_c{k}, 'Color', dim, 'FontName', 'Courier New', ...
+        'FontSize', 7, 'EdgeColor', 'none', 'BackgroundColor', bg);
+    h_tval_c(k) = annotation(fig, 'textbox', [tx_c(k) ty_c(k)-0.01 0.12 0.05], ...
+        'String', '-', 'Color', org, 'FontName', 'Courier New', ...
         'FontSize', 11, 'EdgeColor', 'none', 'BackgroundColor', bg);
 end
 
@@ -126,110 +156,169 @@ set(sl_spd, 'Callback', @(~,~) update_speed());
         vh_spd.String = sprintf('%dx', round(sl_spd.Value));
     end
 
+
+%% ── LVLH TO ECI ROTATION ─────────────────────────────────────────────────
+% lvlh_to_eci: converts a position vector from LVLH frame to ECI frame
+% The LVLH (Local Vertical Local Horizontal) frame is defined by:
+%   x = radial     — points from Earth center outward through target
+%   y = along-track — in direction of orbital motion
+%   z = cross-track — normal to orbit plane (= orbit angular momentum direction)
+%
+% pos_t_m = target ECI position [m], 3x1
+% vel_t_m = target ECI velocity [m/s], 3x1
+% rho_m   = relative position in LVLH [m], 3x1
+% returns chaser ECI position [m], 3x1
+ 
+    function pos_chaser = lvlh_to_eci(pos_t_m, vel_t_m, rho_m)
+        r_hat = pos_t_m / norm(pos_t_m);               % radial unit vector
+        h_vec = cross(pos_t_m, vel_t_m);               % orbit angular momentum vector
+        h_hat = h_vec / norm(h_vec);                   % cross-track unit vector
+        y_hat = cross(h_hat, r_hat);                   % along-track unit vector
+        R = [r_hat, y_hat, h_hat];                     % rotation matrix LVLH -> ECI (3x3)
+        pos_chaser = pos_t_m + R * rho_m;              % chaser ECI position [m]
+    end    
+
 %% ── PLAYBACK UPDATE ──────────────────────────────────────────────────────
 % pb_update: reads current frame from pb_X, moves spacecraft, updates telemetry
 
-    function pb_update()
-        if isempty(pb_X), return; end
 
-        % loop back to start when end of data is reached
-        if pb_idx > size(pb_X, 1)
+    function pb_update()
+        if isempty(pb_Xt), return; end
+ 
+        % loop back to start
+        if pb_idx > size(pb_Xt, 1)
             pb_idx = 1;
         end
-
-        % current state row — convert SI (m, m/s) to km and km/s
-        row     = pb_X(pb_idx, :);
-        pos_km  = row(1:3) / 1000;      % position [km]
-        vel_kms = row(4:6) / 1000;      % velocity [km/s]
-
-        % update spacecraft position and radius vector
-        set(h_sc,  'XData', pos_km(1), 'YData', pos_km(2), 'ZData', pos_km(3));
-        set(h_rad, 'XData', [0 pos_km(1)], 'YData', [0 pos_km(2)], 'ZData', [0 pos_km(3)]);
-
-        % telemetry
-        sc_alt = norm(pos_km) - RE;     % altitude above surface [km]
-        sc_spd = norm(vel_kms);         % speed [km/s]
-        t_now  = pb_t(pb_idx);          % elapsed time [s]
-
-        % pull metadata values if available
+ 
+        %  Target state 
+        row_t    = pb_Xt(pb_idx, :);
+        pos_t_m  = row_t(1:3)';         % target ECI position [m], column vector
+        vel_t_m  = row_t(4:6)';         % target ECI velocity [m/s], column vector
+        pos_t_km = pos_t_m / 1000;      % convert to km
+        vel_t_kms = vel_t_m / 1000;
+ 
+        %  Chaser state 
+        row_rho  = pb_Rho(pb_idx, :);
+        rho_m    = row_rho(1:3)';       % relative position in LVLH [m], column vector
+        rho_dot_m = row_rho(4:6)';      % relative velocity in LVLH [m/s]
+ 
+        % convert chaser to ECI
+        pos_c_m  = lvlh_to_eci(pos_t_m, vel_t_m, rho_m);
+        pos_c_km = pos_c_m / 1000;      % chaser ECI position [km]
+ 
+        %  Update 3D artists 
+        set(h_sc_t,  'XData', pos_t_km(1), 'YData', pos_t_km(2), 'ZData', pos_t_km(3));
+        set(h_rad_t, 'XData', [0 pos_t_km(1)], 'YData', [0 pos_t_km(2)], 'ZData', [0 pos_t_km(3)]);
+ 
+        set(h_sc_c,  'XData', pos_c_km(1), 'YData', pos_c_km(2), 'ZData', pos_c_km(3));
+        set(h_rad_c, 'XData', [0 pos_c_km(1)], 'YData', [0 pos_c_km(2)], 'ZData', [0 pos_c_km(3)]);
+ 
+        % line of sight between chaser and target
+        set(h_los, 'XData', [pos_t_km(1) pos_c_km(1)], ...
+                   'YData', [pos_t_km(2) pos_c_km(2)], ...
+                   'ZData', [pos_t_km(3) pos_c_km(3)]);
+ 
+        % Telemetry 
+        t_alt  = norm(pos_t_km) - RE;       % target altitude [km]
+        t_spd  = norm(vel_t_kms);           % target speed [km/s]
+        c_alt  = norm(pos_c_km) - RE;       % chaser altitude [km]
+        rel_d  = norm(rho_m);               % relative distance [m]
+        rel_v  = norm(rho_dot_m);           % relative speed [m/s]
+        t_now  = pb_t(pb_idx);              % elapsed time [s]
+ 
+        T_min = nan;
         if ~isempty(pb_meta) && isstruct(pb_meta)
-            T_min  = pb_meta.period_min;
-            ecc    = pb_meta.e;
-            rp_alt = pb_meta.altitude_km;
-        else
-            T_min = nan; ecc = nan; rp_alt = nan;
+            T_min = pb_meta.period_min;
         end
-
-        vals = {sprintf('%.0f km',   sc_alt), ...
-                sprintf('%.3f km/s', sc_spd), ...
-                sprintf('%.1f s',    t_now),  ...
-                sprintf('%.2f min',  T_min),  ...
-                sprintf('%.4f',      ecc),    ...
-                sprintf('%.0f km',   rp_alt)};
-        for k = 1:6
-            h_tval(k).String = vals{k};
+ 
+        % target column (cyan)
+        vals_t = {sprintf('%.0f km',  t_alt), ...
+                  sprintf('%.3f km/s', t_spd), ...
+                  sprintf('%.2f min',  T_min), ...
+                  sprintf('%.1f s',    t_now)};
+        for k = 1:4
+            h_tval_t(k).String = vals_t{k};
         end
-
-        % advance frame index based on real time
-        sim_dt       = pb_t(pb_idx+1) - pb_t(pb_idx);
+ 
+        % chaser / relative column (orange)
+        vals_c = {sprintf('%.0f km',  c_alt), ...
+                  sprintf('%.1f m/s', norm(rho_dot_m + vel_t_m/1000)*1000), ...
+                  sprintf('%.1f m',   rel_d), ...
+                  sprintf('%.2f m/s', rel_v)};
+        for k = 1:4
+            h_tval_c(k).String = vals_c{k};
+        end
+ 
+        % Frame advance
+        sim_dt       = pb_t(2) - pb_t(1);
         ticks_needed = sim_dt / (0.05 * sl_spd.Value);
         pb_tick_acc  = pb_tick_acc + 1;
         if pb_tick_acc >= ticks_needed
             pb_idx      = pb_idx + max(1, round(pb_tick_acc / ticks_needed));
             pb_tick_acc = 0;
         end
-
+ 
         drawnow limitrate;
     end
 
-%% ── JSON LOAD ────────────────────────────────────────────────────────────
+%% JSON LOAD 
 
     function load_json(src, evt)
-        [fname, fpath] = uigetfile('*.json', 'Select trajectory JSON file');
+        [fname, fpath] = uigetfile('*.json', 'Select RPO trajectory JSON file');
         if isequal(fname, 0), return; end
-
-        % read and decode JSON
+ 
         fid = fopen(fullfile(fpath, fname), 'r');
         raw = fread(fid, inf, 'uint8=>char')';
         fclose(fid);
         data = jsondecode(raw);
-
-        % validate
-        if ~isfield(data, 't') || ~isfield(data, 'X')
-            errordlg('JSON must contain fields "t" and "X"', 'Invalid file');
+ 
+        % validate required fields
+        if ~isfield(data, 't') || ~isfield(data, 'X_t') || ~isfield(data, 'Rho')
+            errordlg('JSON must contain fields "t", "X_t" and "Rho"', 'Invalid file');
             return;
         end
-
-        % store data
-        pb_t   = data.t;
-        pb_X   = data.X;
-        pb_idx = 1;
+ 
+        pb_t        = data.t;
+        pb_Xt       = data.X_t;
+        pb_Rho      = data.Rho;
+        pb_idx      = 1;
         pb_tick_acc = 0;
-        pb_meta = [];
+        pb_meta     = [];
         if isfield(data, 'metadata')
             pb_meta = data.metadata;
         end
-
-        % draw full trajectory path — convert all positions m -> km
-        pos_all = pb_X(:, 1:3) / 1000;
-        set(h_trail, ...
-            'XData', pos_all(:,1)', ...
-            'YData', pos_all(:,2)', ...
-            'ZData', pos_all(:,3)');
-
-        % fit axes to trajectory
-        r_max = max(vecnorm(pos_all, 2, 2)) * 1.15;
+ 
+        % draw full target trajectory
+        pos_t_all = pb_Xt(:, 1:3) / 1000;      % Nx3 [km]
+        set(h_trail_t, 'XData', pos_t_all(:,1)', ...
+                       'YData', pos_t_all(:,2)', ...
+                       'ZData', pos_t_all(:,3)');
+ 
+        % compute and draw full chaser trajectory
+        n = size(pb_Xt, 1);
+        pos_c_all = zeros(n, 3);
+        for k = 1:n
+            pt = pb_Xt(k, 1:3)';
+            vt = pb_Xt(k, 4:6)';
+            rc = pb_Rho(k, 1:3)';
+            pos_c_all(k, :) = lvlh_to_eci(pt, vt, rc)' / 1000;    % [km]
+        end
+        set(h_trail_c, 'XData', pos_c_all(:,1)', ...
+                       'YData', pos_c_all(:,2)', ...
+                       'ZData', pos_c_all(:,3)');
+ 
+        % fit axes to both trajectories combined
+        all_pos = [pos_t_all; pos_c_all];
+        r_max   = max(vecnorm(all_pos, 2, 2)) * 1.15;
         axis(ax3d, [-r_max r_max -r_max r_max -r_max r_max]);
-
-        % update filename label
+ 
         h_file_label.String = fname;
         h_file_label.Color  = [0 0.78 1];
-
-        % auto-start playback
+ 
         running = true;
     end
 
-%% ── TIMER ────────────────────────────────────────────────────────────────
+%% TIMER 
 
     function tick(src, evt)
         if running

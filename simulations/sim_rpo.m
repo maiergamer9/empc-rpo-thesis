@@ -40,9 +40,9 @@ X_t0 = [rx0_t; ry0_t; rz0_t; vx0_t; vy0_t; vz0_t];
 
 %% Chaser initial conditions in Hill frame
 
-x0     =  100;   % [m]   radial offset
-y0     =  200;   % [m]   along-track offset
-z0     =    0;   % [m]   cross-track offset
+x0     =  10000;   % [m]   radial offset
+y0     =  20000;   % [m]   along-track offset
+z0     =   5000;   % [m]   cross-track offset
 x_dot0 =    0;   % [m/s]
 y_dot0 = -2 * n * x0;  % [m/s]  drift-free condition, bound relative orbit constrained
 z_dot0 =    0;   % [m/s]
