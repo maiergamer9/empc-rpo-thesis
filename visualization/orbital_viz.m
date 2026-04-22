@@ -5,10 +5,10 @@ function orbital_viz()
 % X columns: [rx, ry, rz, vx, vy, vz] in SI units (m, m/s)
 % Reference: "Analytical Mechanics of Space Systems" - H.Schaub, J.L.Junkins
 
-%% ── CONSTANTS ────────────────────────────────────────────────────────────
+%%  CONSTANTS 
 RE = 6378.137;      % Earth mean equatorial radius [km]
 
-%% ── PLAYBACK STATE ───────────────────────────────────────────────────────
+%%  PLAYBACK STATE 
 pb_t    = [];       % time vector [s], Nx1
 pb_Xt    = [];      % target ECI state   
 pb_Rho   = [];      % chaser LVLH state
@@ -18,15 +18,15 @@ running = false;    % is animation currently playing?
 
 pb_tick_acc = 0;        % tick accumulator for real-time pacing
 
-%% ── FIGURE ───────────────────────────────────────────────────────────────
+%% FIGURE 
 fig = figure('Name', 'RPO Trajectory Visualizer', ...
     'Color', [0.02 0.05 0.09], ...
-    'Position', [100 100 1100 650], ...
+    'Position', [50 50 1400 700], ...
     'NumberTitle', 'off');
 
-%% ── 3D AXES ──────────────────────────────────────────────────────────────
+%% 3D AXES 
 ax3d = axes('Parent', fig, ...
-    'Position', [0.03 0.12 0.68 0.82], ...
+    'Position', [0.03 0.12 0.40 0.82], ...
     'Color',    [0.02 0.05 0.09], ...
     'XColor',   [0.29 0.42 0.53], ...
     'YColor',   [0.29 0.42 0.53], ...
@@ -37,16 +37,42 @@ view(ax3d, 35, 25);
 xlabel(ax3d, 'X (km)', 'FontSize', 7);
 ylabel(ax3d, 'Y (km)', 'FontSize', 7);
 zlabel(ax3d, 'Z (km)', 'FontSize', 7);
-title(ax3d, 'RPO / Rendezvous TRAJECTORY VISUALIZER', ...
-    'Color', [0 0.78 1], 'FontName', 'Courier New', 'FontSize', 10);
+title(ax3d, 'ECI FRAME', ...
+    'Color', [0 0.78 1], 'FontName', 'Courier New', 'FontSize', 9);
+ 
+%%  2D PLOT 1: Radial vs Along-track (Hill frame)
+ax_xy = axes('Parent', fig, ...
+    'Position', [0.46 0.55 0.24 0.38], ...
+    'Color',    [0.02 0.05 0.09], ...
+    'XColor',   [0.29 0.42 0.53], ...
+    'YColor',   [0.29 0.42 0.53], ...
+    'FontSize', 7, 'FontName', 'Courier New');
+hold(ax_xy, 'on'); grid(ax_xy, 'on'); axis(ax_xy, 'equal');
+xlabel(ax_xy, 'Along-track y [m]', 'FontSize', 7, 'Color', [0.69 0.80 0.91]);
+ylabel(ax_xy, 'Radial x [m]',      'FontSize', 7, 'Color', [0.69 0.80 0.91]);
+title(ax_xy, 'HILL FRAME — RADIAL vs ALONG-TRACK', ...
+    'Color', [0 0.78 1], 'FontName', 'Courier New', 'FontSize', 8);
+ 
+%% 2D PLOT 2: Relative distance vs time 
+ax_dt = axes('Parent', fig, ...
+    'Position', [0.46 0.12 0.24 0.34], ...
+    'Color',    [0.02 0.05 0.09], ...
+    'XColor',   [0.29 0.42 0.53], ...
+    'YColor',   [0.29 0.42 0.53], ...
+    'FontSize', 7, 'FontName', 'Courier New');
+hold(ax_dt, 'on'); grid(ax_dt, 'on');
+xlabel(ax_dt, 'Time [s]',             'FontSize', 7, 'Color', [0.69 0.80 0.91]);
+ylabel(ax_dt, 'Relative distance [m]', 'FontSize', 7, 'Color', [0.69 0.80 0.91]);
+title(ax_dt, 'RELATIVE DISTANCE vs TIME', ...
+    'Color', [0 0.78 1], 'FontName', 'Courier New', 'FontSize', 8);
 
-%% ── EARTH ────────────────────────────────────────────────────────────────
+%%  EARTH 
 [ue, ve] = meshgrid(linspace(0, 2*pi, 36), linspace(0, pi, 18));
 mesh(ax3d, RE*sin(ve).*cos(ue), RE*sin(ve).*sin(ue), RE*cos(ve), ...
     'EdgeColor', [0.10 0.23 0.35], 'FaceColor', [0.04 0.08 0.14], ...
     'EdgeAlpha', 0.4, 'FaceAlpha', 0.6);
 
-%% ── PLOT ARTISTS ─────────────────────────────────────────────────────────
+%%  PLOT ARTISTS 
 % Target spacecraft
 h_trail_t = plot3(ax3d, nan, nan, nan, 'Color', [0 0.78 1], ...
                   'LineWidth', 1.0, 'LineStyle', '-');
@@ -69,7 +95,25 @@ legend(ax3d, [h_sc_t, h_sc_c], {'Target', 'Chaser'}, ...
     'TextColor', [0.69 0.80 0.91], 'Color', [0.04 0.07 0.13], ...
     'EdgeColor', [0.10 0.18 0.28], 'FontSize', 7, 'Location', 'northwest');
 
-%% ── TELEMETRY PANEL ──────────────────────────────────────────────────────
+%% PLOT ARTISTS — 2D Hill frame 
+% Full trajectory trail (static, drawn on load)
+h_xy_trail = plot(ax_xy, nan, nan, 'Color', [0 0.78 1]*0.5, ...
+                  'LineWidth', 0.8, 'LineStyle', '-');
+% Live position dot
+h_xy_dot   = plot(ax_xy, nan, nan, 'o', 'Color', [1 0.55 0], ...
+                  'MarkerFaceColor', [1 0.55 0], 'MarkerSize', 7);
+% Origin cross (target position)
+plot(ax_xy, 0, 0, '+', 'Color', [0 0.78 1], 'MarkerSize', 10, 'LineWidth', 1.5);
+ 
+%% PLOT ARTISTS — 2D distance vs time
+% Full distance history (static, drawn on load)
+h_dt_trail = plot(ax_dt, nan, nan, 'Color', [0 0.78 1]*0.5, ...
+                  'LineWidth', 0.8);
+% Live progress marker
+h_dt_dot   = plot(ax_dt, nan, nan, 'o', 'Color', [1 0.55 0], ...
+                  'MarkerFaceColor', [1 0.55 0], 'MarkerSize', 7);
+
+%%  TELEMETRY PANEL 
 bg  = [0.02 0.05 0.09];
 dim = [0.29 0.42 0.53];
 blu = [0.00 0.78 1.00];
@@ -109,7 +153,7 @@ h_file_label = annotation(fig, 'textbox', [0.74 0.91 0.24 0.05], ...
     'FontName', 'Courier New', 'FontSize', 8, ...
     'EdgeColor', 'none', 'BackgroundColor', bg);
 
-%% ── CONTROLS ─────────────────────────────────────────────────────────────
+%% CONTROLS 
 sc_bg = [0.02 0.05 0.09];
 
 % btn_load  = open file browser to import JSON
@@ -157,7 +201,7 @@ set(sl_spd, 'Callback', @(~,~) update_speed());
     end
 
 
-%% ── LVLH TO ECI ROTATION ─────────────────────────────────────────────────
+%% LVLH TO ECI ROTATION 
 % lvlh_to_eci: converts a position vector from LVLH frame to ECI frame
 % The LVLH (Local Vertical Local Horizontal) frame is defined by:
 %   x = radial     — points from Earth center outward through target
@@ -178,7 +222,7 @@ set(sl_spd, 'Callback', @(~,~) update_speed());
         pos_chaser = pos_t_m + R * rho_m;              % chaser ECI position [m]
     end    
 
-%% ── PLAYBACK UPDATE ──────────────────────────────────────────────────────
+%%  PLAYBACK UPDATE 
 % pb_update: reads current frame from pb_X, moves spacecraft, updates telemetry
 
 
@@ -206,12 +250,22 @@ set(sl_spd, 'Callback', @(~,~) update_speed());
         pos_c_m  = lvlh_to_eci(pos_t_m, vel_t_m, rho_m);
         pos_c_km = pos_c_m / 1000;      % chaser ECI position [km]
  
-        %  Update 3D artists 
+        % Update 3D 
         set(h_sc_t,  'XData', pos_t_km(1), 'YData', pos_t_km(2), 'ZData', pos_t_km(3));
         set(h_rad_t, 'XData', [0 pos_t_km(1)], 'YData', [0 pos_t_km(2)], 'ZData', [0 pos_t_km(3)]);
- 
         set(h_sc_c,  'XData', pos_c_km(1), 'YData', pos_c_km(2), 'ZData', pos_c_km(3));
         set(h_rad_c, 'XData', [0 pos_c_km(1)], 'YData', [0 pos_c_km(2)], 'ZData', [0 pos_c_km(3)]);
+        set(h_los,   'XData', [pos_t_km(1) pos_c_km(1)], ...
+                     'YData', [pos_t_km(2) pos_c_km(2)], ...
+                     'ZData', [pos_t_km(3) pos_c_km(3)]);
+ 
+        % Update Plot 1: live dot on x-y phase plot
+        set(h_xy_dot, 'XData', rho_m(2), 'YData', rho_m(1));
+ 
+        % Update Plot 2: live dot on distance-time plot
+        t_now = pb_t(pb_idx);
+        rel_d = norm(rho_m);
+        set(h_dt_dot, 'XData', t_now, 'YData', rel_d);
  
         % line of sight between chaser and target
         set(h_los, 'XData', [pos_t_km(1) pos_c_km(1)], ...
@@ -311,6 +365,17 @@ set(sl_spd, 'Callback', @(~,~) update_speed());
         all_pos = [pos_t_all; pos_c_all];
         r_max   = max(vecnorm(all_pos, 2, 2)) * 1.15;
         axis(ax3d, [-r_max r_max -r_max r_max -r_max r_max]);
+
+        % Draw full Hill frame trail on Plot 1 (x vs y)
+        rho_y = pb_Rho(:, 2);   % along-track
+        rho_x = pb_Rho(:, 1);   % radial
+        set(h_xy_trail, 'XData', rho_y', 'YData', rho_x');
+        axis(ax_xy, 'auto');
+ 
+        % Draw full distance history on Plot 2
+        rel_dist = vecnorm(pb_Rho(:, 1:3), 2, 2);   % Nx1
+        set(h_dt_trail, 'XData', pb_t', 'YData', rel_dist');
+        axis(ax_dt, 'auto');
  
         h_file_label.String = fname;
         h_file_label.Color  = [0 0.78 1];
