@@ -84,18 +84,43 @@ end
 
 %% Plots
 
-figure;
-subplot(1,2,1);
-plot(Rho(2,:)/1000, Rho(1,:)/1000, 'b', 'LineWidth', 1.5);
-xlabel('Along-track y [km]');
-ylabel('Radial x [km]');
-title(sprintf('Relative Trajectory (%s)', dynamics_model));
-grid on; axis equal;
+% figure;
+% subplot(1,2,1);
+% plot(Rho(2,:)/1000, Rho(1,:)/1000, 'b', 'LineWidth', 1.5);
+% xlabel('Along-track y [km]');
+% ylabel('Radial x [km]');
+% title(sprintf('Relative Trajectory (%s)', dynamics_model));
+% grid on; axis equal;
 
-subplot(1,2,2);
-plot3(Rho(1,:)/1000, Rho(2,:)/1000, Rho(3,:)/1000, 'b', 'LineWidth', 1.5);
-xlabel('Radial x [km]');
-ylabel('Along-track y [km]');
-zlabel('Cross-track z [km]');
-title('3D Relative Trajectory');
-grid on; axis equal;
+% subplot(1,2,2);
+% plot3(Rho(1,:)/1000, Rho(2,:)/1000, Rho(3,:)/1000, 'b', 'LineWidth', 1.5);
+% xlabel('Radial x [km]');
+% ylabel('Along-track y [km]');
+% zlabel('Cross-track z [km]');
+% title('3D Relative Trajectory');
+% grid on; axis equal;
+
+%% Export to JSON
+metadata = struct(...
+    'a_km',           a / 1000, ...
+    'e',              e, ...
+    'i_deg',          rad2deg(i), ...
+    'period_min',     T / 60, ...
+    'altitude_km',    (a - R_earth) / 1000, ...
+    'dt',             dt, ...
+    'n_steps',        n_steps, ...
+    'dynamics_model', dynamics_model); 
+
+data = struct(...
+    'metadata', metadata, ...
+    't',        t, ...
+    'X_t',      X_t', ...     % target ECI state, N x 6
+    'Rho',      Rho');        % relative state in Hill frame, N x 6
+
+json_str = jsonencode(data, 'PrettyPrint', true);
+
+fid = fopen('exports/scenarios/sim_rpo.json', 'w');
+fprintf(fid, '%s', json_str);
+fclose(fid);
+
+disp('Simulation complete. JSON exported.');
