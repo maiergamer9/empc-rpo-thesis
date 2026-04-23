@@ -123,4 +123,5 @@ fid = fopen('exports/scenarios/sim_rpo.json', 'w');
 fprintf(fid, '%s', json_str);
 fclose(fid);
 
+save('exports/scenarios/sim_rpo.mat', 'Rho', 't', 'n', 'metadata');
 disp('Simulation complete. JSON exported.');
