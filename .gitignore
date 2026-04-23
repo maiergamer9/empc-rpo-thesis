@@ -13,6 +13,9 @@ slprj/
 results/figures/*.png
 results/figures/*.pdf
 
+# MAtlab2tikz-master
+src/matlab2tikz-master
+exports/figures/
 # IDE
 .vscode/
 
