@@ -9,7 +9,7 @@ R_earth = 6371000;              % Earth Radius [m]
 omega_earth = 7.2921150e-5;     % Earth Rotation Rate [rad/s]
 
 %% Mission Parameters (ISS values, for start)
-a = 7771000;                    % Semi-major axis [m] (1400km)
+a = 6771000;                    % Semi-major axis [m] (400km)
 e = 0;                          % eccentricity [-] (circular orbit, assumption for HCW)
 i = deg2rad(51.6);              % Inclination [rad] (ISS)
 

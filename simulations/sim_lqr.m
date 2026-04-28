@@ -2,14 +2,14 @@
 % Simulates LQR-controlled rendezvous in the Hill frame based on CW
 % equations
 
-clear; clc;
+clear; clc; close all;
 
 %% constants
 constants;
 
 %% Simulation Parameters
 dt = 10;
-t_final = 2*T;
+t_final = T;
 n_steps = round(t_final / dt);
 t = (0:n_steps-1) * dt;
 
@@ -77,81 +77,97 @@ U_hist(:, end) = -K * X_hist(:, end);               % last control input
 
 %% Plots
 
-figure('Color', [0.02 0.05 0.09], 'Position', [50 50 1200 700]);
+t_min = t / 60;   % convert to minutes
 
-% Colour scheme
-c_pos = [0.00 0.78 1.00];   % cyan   — position states
-c_vel = [1.00 0.55 0.00];   % orange — velocity states
-c_u   = [0.22 1.00 0.08];   % green  — control inputs
-ax_style = {'Color', [0.04 0.07 0.13], ...
-            'XColor', [0.5 0.6 0.7], 'YColor', [0.5 0.6 0.7], ...
-            'FontName', 'Courier New', 'FontSize', 7, 'GridColor', [0.2 0.3 0.4]};
+c_x   = [0.00 0.60 0.90];   % blue   — x / ux
+c_y   = [0.90 0.40 0.00];   % orange — y / uy
+c_z   = [0.20 0.80 0.20];   % green  — z / uz
 
-t_min = t / 60;   % convert to minutes for readability
+fig = figure('Name', 'LQR Rendezvous');
 
 % ── Plot 1: Position states ───────────────────────────────────────────────
-subplot(2, 3, 1);
-set(gca, ax_style{:}); hold on; grid on;
-plot(t_min, X_hist(1,:), 'Color', c_pos,         'LineWidth', 1.2, 'DisplayName', 'x (radial)');
-plot(t_min, X_hist(2,:), 'Color', c_pos*0.7,     'LineWidth', 1.2, 'DisplayName', 'y (along-track)');
-plot(t_min, X_hist(3,:), 'Color', c_pos.*[1 0.5 0.5], 'LineWidth', 1.2, 'DisplayName', 'z (cross-track)');
-xlabel('Time [min]', 'Color', [0.7 0.8 0.9]);
-ylabel('Position [m]', 'Color', [0.7 0.8 0.9]);
-title('POSITION STATES', 'Color', c_pos, 'FontName', 'Courier New');
-legend('TextColor', [0.7 0.8 0.9], 'Color', [0.04 0.07 0.13], 'EdgeColor', 'none', 'FontSize', 6);
+ax1 = subplot(2, 3, 1);
+hold(ax1, 'on'); grid(ax1, 'on');
+plot(ax1, t_min, X_hist(1,:), 'Color', c_x, 'LineWidth', 1.2, 'DisplayName', 'x (radial)');
+plot(ax1, t_min, X_hist(2,:), 'Color', c_y, 'LineWidth', 1.2, 'DisplayName', 'y (along-track)');
+plot(ax1, t_min, X_hist(3,:), 'Color', c_z, 'LineWidth', 1.2, 'DisplayName', 'z (cross-track)');
+xlabel(ax1, 'Time [min]');
+ylabel(ax1, 'Position [m]');
+title(ax1, 'Position States');
+legend(ax1, 'Location', 'northeast');
 
 % ── Plot 2: Velocity states ───────────────────────────────────────────────
-subplot(2, 3, 2);
-set(gca, ax_style{:}); hold on; grid on;
-plot(t_min, X_hist(4,:), 'Color', c_vel,         'LineWidth', 1.2, 'DisplayName', 'x\_dot');
-plot(t_min, X_hist(5,:), 'Color', c_vel*0.7,     'LineWidth', 1.2, 'DisplayName', 'y\_dot');
-plot(t_min, X_hist(6,:), 'Color', c_vel.*[1 0.5 0.5], 'LineWidth', 1.2, 'DisplayName', 'z\_dot');
-xlabel('Time [min]', 'Color', [0.7 0.8 0.9]);
-ylabel('Velocity [m/s]', 'Color', [0.7 0.8 0.9]);
-title('VELOCITY STATES', 'Color', c_vel, 'FontName', 'Courier New');
-legend('TextColor', [0.7 0.8 0.9], 'Color', [0.04 0.07 0.13], 'EdgeColor', 'none', 'FontSize', 6);
+ax2 = subplot(2, 3, 2);
+hold(ax2, 'on'); grid(ax2, 'on');
+plot(ax2, t_min, X_hist(4,:), 'Color', c_x, 'LineWidth', 1.2, 'DisplayName', '$\dot{x}$');
+plot(ax2, t_min, X_hist(5,:), 'Color', c_y, 'LineWidth', 1.2, 'DisplayName', '$\dot{y}$');
+plot(ax2, t_min, X_hist(6,:), 'Color', c_z, 'LineWidth', 1.2, 'DisplayName', '$\dot{z}$');
+xlabel(ax2, 'Time [min]');
+ylabel(ax2, 'Velocity [m/s]');
+title(ax2, 'Velocity States');
+legend(ax2, 'Location', 'northeast', 'Interpreter', 'latex');
 
 % ── Plot 3: Relative distance ─────────────────────────────────────────────
-subplot(2, 3, 3);
-set(gca, ax_style{:}); hold on; grid on;
+ax3 = subplot(2, 3, 3);
+hold(ax3, 'on'); grid(ax3, 'on');
 rel_dist = vecnorm(X_hist(1:3, :), 2, 1);
-plot(t_min, rel_dist, 'Color', c_pos, 'LineWidth', 1.2);
-xlabel('Time [min]', 'Color', [0.7 0.8 0.9]);
-ylabel('Distance [m]', 'Color', [0.7 0.8 0.9]);
-title('RELATIVE DISTANCE', 'Color', c_pos, 'FontName', 'Courier New');
+plot(ax3, t_min, rel_dist, 'Color', c_x, 'LineWidth', 1.2);
+xlabel(ax3, 'Time [min]');
+ylabel(ax3, 'Distance [m]');
+title(ax3, 'Relative Distance');
 
 % ── Plot 4: Control inputs ────────────────────────────────────────────────
-subplot(2, 3, 4);
-set(gca, ax_style{:}); hold on; grid on;
-plot(t_min, U_hist(1,:)*1000, 'Color', c_u,         'LineWidth', 1.2, 'DisplayName', 'ux');
-plot(t_min, U_hist(2,:)*1000, 'Color', c_u*0.7,     'LineWidth', 1.2, 'DisplayName', 'uy');
-plot(t_min, U_hist(3,:)*1000, 'Color', c_u.*[1 0.5 0.5], 'LineWidth', 1.2, 'DisplayName', 'uz');
-xlabel('Time [min]', 'Color', [0.7 0.8 0.9]);
-ylabel('Acceleration [mm/s^2]', 'Color', [0.7 0.8 0.9]);
-title('CONTROL INPUTS', 'Color', c_u, 'FontName', 'Courier New');
-legend('TextColor', [0.7 0.8 0.9], 'Color', [0.04 0.07 0.13], 'EdgeColor', 'none', 'FontSize', 6);
+ax4 = subplot(2, 3, 4);
+hold(ax4, 'on'); grid(ax4, 'on');
+plot(ax4, t_min, U_hist(1,:)*1000, 'Color', c_x, 'LineWidth', 1.2, 'DisplayName', '$u_x$');
+plot(ax4, t_min, U_hist(2,:)*1000, 'Color', c_y, 'LineWidth', 1.2, 'DisplayName', '$u_y$');
+plot(ax4, t_min, U_hist(3,:)*1000, 'Color', c_z, 'LineWidth', 1.2, 'DisplayName', '$u_z$');
+xlabel(ax4, 'Time [min]');
+ylabel(ax4, 'Acceleration [mm/s$^2$]', 'Interpreter', 'latex');
+title(ax4, 'Control Inputs');
+legend(ax4, 'Location', 'northeast', 'Interpreter', 'latex');
 
-% ── Plot 5: Hill frame trajectory (x vs y) ────────────────────────────────
-subplot(2, 3, 5);
-set(gca, ax_style{:}); hold on; grid on; axis equal;
-plot(X_hist(2,:), X_hist(1,:), 'Color', c_pos, 'LineWidth', 1.2);
-plot(X_hist(2,1), X_hist(1,1), 'o', 'Color', c_vel, 'MarkerFaceColor', c_vel, 'MarkerSize', 8);
-plot(0, 0, '+', 'Color', c_pos, 'MarkerSize', 10, 'LineWidth', 2);
-xlabel('Along-track y [m]', 'Color', [0.7 0.8 0.9]);
-ylabel('Radial x [m]', 'Color', [0.7 0.8 0.9]);
-title('HILL FRAME TRAJECTORY', 'Color', c_pos, 'FontName', 'Courier New');
+% ── Plot 5: Hill frame trajectory ─────────────────────────────────────────
+ax5 = subplot(2, 3, 5);
+hold(ax5, 'on'); grid(ax5, 'on'); axis(ax5, 'equal');
+plot(ax5, X_hist(2,:), X_hist(1,:), 'Color', c_x, 'LineWidth', 1.2);
+plot(ax5, X_hist(2,1), X_hist(1,1), 'o', 'Color', c_y, ...
+     'MarkerFaceColor', c_y, 'MarkerSize', 6);
+plot(ax5, 0, 0, '+k', 'MarkerSize', 8, 'LineWidth', 1.5);
+xlabel(ax5, 'Along-track $y$ [m]', 'Interpreter', 'latex');
+ylabel(ax5, 'Radial $x$ [m]',      'Interpreter', 'latex');
+title(ax5, 'Hill Frame Trajectory');
 
 % ── Plot 6: Cumulative delta-v ────────────────────────────────────────────
-subplot(2, 3, 6);
-set(gca, ax_style{:}); hold on; grid on;
-dv = cumsum(vecnorm(U_hist, 2, 1) * dt);   % cumulative delta-v [m/s]
-plot(t_min, dv, 'Color', c_u, 'LineWidth', 1.2);
-xlabel('Time [min]', 'Color', [0.7 0.8 0.9]);
-ylabel('\Delta v [m/s]', 'Color', [0.7 0.8 0.9]);
-title('CUMULATIVE \Delta V', 'Color', c_u, 'FontName', 'Courier New');
+ax6 = subplot(2, 3, 6);
+hold(ax6, 'on'); grid(ax6, 'on');
+dv = cumsum(vecnorm(U_hist, 2, 1) * dt);
+plot(ax6, t_min, dv, 'Color', c_z, 'LineWidth', 1.2);
+xlabel(ax6, 'Time [min]');
+ylabel(ax6, '$\Delta v$ [m/s]', 'Interpreter', 'latex');
+title(ax6, 'Cumulative $\Delta v$', 'Interpreter', 'latex');
 
-sgtitle('LQR RENDEZVOUS — CWH MODEL', 'Color', [0 0.78 1], ...
-        'FontName', 'Courier New', 'FontSize', 12);
+%% To Tikz
+
+addpath('tools/matlab2tikz-master/src');
+
+fig_names = {'lqr_position', 'lqr_velocity', 'lqr_distance', ...
+             'lqr_control',  'lqr_trajectory', 'lqr_deltav'};
+axes_handles = [ax1, ax2, ax3, ax4, ax5, ax6];
+
+for k = 1:6
+    fig_tmp = figure('Visible', 'off');
+    ax_tmp  = copyobj(axes_handles(k), fig_tmp);
+    ax_tmp.Position = [0.15 0.15 0.75 0.75];
+    matlab2tikz(sprintf('results/figures/lqr/%s.tikz', fig_names{k}), ...
+        'figurehandle',  fig_tmp, ...
+        'width',         '\figurewidth', ...
+        'height',        '\figureheight', ...
+        'showInfo',      false, ...
+        'checkForUpdates', false);
+    close(fig_tmp);
+end
+disp('Tikz files exported.');
 
 
 %% JSON export
