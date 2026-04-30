@@ -42,7 +42,7 @@ sys_d = ss(Ad, Bd, C_int, zeros(3,3), dt);
 Q = blkdiag(...
     diag([1e-2, 1e-2, 1e-2, ...        % position weights
           1e0,  1e0,  1e0  ]), ...      % velocity weights
-    diag([1e-2, 1e-2, 1e-2]));         % integrator weights 
+    diag([1e-5, 1e-5, 1e-5]));         % integrator weights 
 
 R = diag([1e8, 1e8, 1e8]);             % control weights
 [K, ~, ~] = lqi(sys_d, Q, R);
@@ -94,16 +94,26 @@ U_hist = zeros(3, n_steps);   % control history
 X_hist(:, 1) = X0;
 Xi_hist(:, 1) = Xi0;
 
+% Only activate integrator within 1 km of target
+integration_threshold = 1000; % metres
+
 for k = 1:n_steps-1
     x  = X_hist(:, k);
     xi = Xi_hist(:, k);
 
-    z = [x; xi];                            % augmented state (9x1)
-    u = -K * z;                             % LQI control law
+    z = [x; xi];
+    u = -K * z;
 
     X_hist(:,  k+1) = Ad * x + Bd * u;
-    Xi_hist(:, k+1) = xi - dt * (C_int * x); 
-    U_hist(:,  k)   = u;
+    
+    % Only integrate when close to target
+    if norm(x(1:3)) < integration_threshold
+        Xi_hist(:, k+1) = xi - dt * (C_int * x);
+    else
+        Xi_hist(:, k+1) = zeros(n_xi, 1); % reset/hold integrator
+    end
+    
+    U_hist(:, k) = u;
 end
 % Last step
 u_end          = -K * [X_hist(:,end); Xi_hist(:,end)];
@@ -185,8 +195,8 @@ title(ax6, 'Cumulative $\Delta v$', 'Interpreter', 'latex');
 
 addpath('tools/matlab2tikz-master/src');
 
-fig_names = {'lqi_position', 'lqi_velocity', 'lqi_distance', ...
-             'lqi_control',  'lqi_trajectory', 'lqi_deltav'};
+fig_names = {'lqi_position_switched', 'lqi_velocity_switched', 'lqi_distance_switched', ...
+             'lqi_control_switched',  'lqi_trajectory_switched', 'lqi_deltav_switched'};
 axes_handles = [ax1, ax2, ax3, ax4, ax5, ax6];
 
 for k = 1:6
