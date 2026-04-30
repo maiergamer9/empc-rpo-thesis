@@ -1,6 +1,7 @@
-% sim_lqr.m
-% Simulates LQR-controlled rendezvous in the Hill frame based on CW
-% equations
+% sim_lqi.m
+% Simulates LQI-controlled rendezvous in the Hill frame based on CW
+% equations. Uses the LQR script and adds three integrators on the position
+% states to make it a 9-dimensional state space
 
 clear; clc; 
 
@@ -30,18 +31,40 @@ Bc = [zeros(3,3); eye(3)];
 [Ad, Bd] = discretize(Ac, Bc, dt);
 
 
-%% LQR design
+%% LQI Design
+% We integrate position errors only (x, y, z)
+C_int = [eye(3), zeros(3,3)];     
 
-Q = diag([1e-2, 1e-2, 1e-2, ...        % position weights
-          1e0, 1e0, 1e0]);          % velocity weights
+% Build discrete-time state-space model for lqi()
+sys_d = ss(Ad, Bd, C_int, zeros(3,3), dt);
 
-R = diag([1e8, 1e8, 1e8]);        % control weights  
 
-[K, P] = lqr_controller(Ad, Bd, Q, R);
+Q = blkdiag(...
+    diag([1e-2, 1e-2, 1e-2, ...        % position weights
+          1e0,  1e0,  1e0  ]), ...      % velocity weights
+    diag([1e-2, 1e-2, 1e-2]));         % integrator weights 
 
-fprintf('LQR gain K computed.\n');
-fprintf('Closed-loop eigenvalues:\n');
-disp(eig(Ad - Bd*K));
+R = diag([1e8, 1e8, 1e8]);             % control weights
+[K, ~, ~] = lqi(sys_d, Q, R);
+
+
+fprintf('LQI gain K computed.\n');
+fprintf('K_states     =\n'); disp(K(:, 1:6));
+fprintf('K_integrators=\n'); disp(K(:, 7:9));
+
+% Closed-loop eigenvalues of augmented system
+n_xi  = 3;
+A_aug = [Ad,               zeros(6, n_xi);
+         -dt * C_int * Ad,  eye(n_xi)     ];
+B_aug = [Bd; -dt * C_int * Bd];
+fprintf('Closed-loop eigenvalues (augmented):\n');
+disp(eig(A_aug - B_aug * K));
+
+mag = abs(eig(A_aug - B_aug * K));
+fprintf('Max closed-loop eigenvalue magnitude: %.6f\n', max(mag));
+if any(mag >= 1.0)
+    error('Augmented system is UNSTABLE. Re-tune Q integrator weights.');
+end
 
 %% Initial Conditions
 
@@ -53,6 +76,7 @@ y_dot0 =    0;
 z_dot0 =    0;  
 
 X0 = [x0; y0; z0; x_dot0; y_dot0; z_dot0];
+Xi0 = zeros(n_xi, 1);
 
 %% Integrate target orbit (for JSON export and visualization)
 
@@ -64,16 +88,26 @@ X_t = rk4_integrator(f_target, X_t0, dt, n_steps);
 
 %% Closed Loop Simulation
 X_hist = zeros(6, n_steps);   % state history
+Xi_hist = zeros(n_xi, n_steps);
 U_hist = zeros(3, n_steps);   % control history
 
 X_hist(:, 1) = X0;
+Xi_hist(:, 1) = Xi0;
 
 for k = 1:n_steps-1
-    u = -K * X_hist(:, k);                          % LQR control law
-    X_hist(:, k+1) = Ad * X_hist(:, k) + Bd * u;   
-    U_hist(:, k)   = u;                             
+    x  = X_hist(:, k);
+    xi = Xi_hist(:, k);
+
+    z = [x; xi];                            % augmented state (9x1)
+    u = -K * z;                             % LQI control law
+
+    X_hist(:,  k+1) = Ad * x + Bd * u;
+    Xi_hist(:, k+1) = xi - dt * (C_int * x); 
+    U_hist(:,  k)   = u;
 end
-U_hist(:, end) = -K * X_hist(:, end);               % last control input
+% Last step
+u_end          = -K * [X_hist(:,end); Xi_hist(:,end)];
+U_hist(:, end) = u_end;
 
 %% Plots
 
@@ -83,7 +117,7 @@ c_x   = [0.00 0.60 0.90];   % blue   — x / ux
 c_y   = [0.90 0.40 0.00];   % orange — y / uy
 c_z   = [0.20 0.80 0.20];   % green  — z / uz
 
-fig = figure('Name', 'LQR Rendezvous');
+fig = figure('Name', 'LQI Rendezvous');
 
 % ── Plot 1: Position states ───────────────────────────────────────────────
 ax1 = subplot(2, 3, 1);
@@ -151,15 +185,15 @@ title(ax6, 'Cumulative $\Delta v$', 'Interpreter', 'latex');
 
 addpath('tools/matlab2tikz-master/src');
 
-fig_names = {'lqr_position', 'lqr_velocity', 'lqr_distance', ...
-             'lqr_control',  'lqr_trajectory', 'lqr_deltav'};
+fig_names = {'lqi_position', 'lqi_velocity', 'lqi_distance', ...
+             'lqi_control',  'lqi_trajectory', 'lqi_deltav'};
 axes_handles = [ax1, ax2, ax3, ax4, ax5, ax6];
 
 for k = 1:6
     fig_tmp = figure('Visible', 'off');
     ax_tmp  = copyobj(axes_handles(k), fig_tmp);
     ax_tmp.Position = [0.15 0.15 0.75 0.75];
-    matlab2tikz(sprintf('results/figures/lqr/%s.tikz', fig_names{k}), ...
+    matlab2tikz(sprintf('results/figures/lqi/%s.tikz', fig_names{k}), ...
         'figurehandle',  fig_tmp, ...
         'width',         '\figurewidth', ...
         'height',        '\figureheight', ...
@@ -180,7 +214,7 @@ metadata = struct(...
     'altitude_km',    (a - R_earth) / 1000, ...
     'dt',             dt, ...
     'n_steps',        n_steps, ...
-    'controller',     'LQR', ...
+    'controller',     'LQI', ...
     'dynamics_model', 'CWH');
 
 data = struct(...
@@ -190,7 +224,7 @@ data = struct(...
     'Rho',      X_hist');
 
 json_str = jsonencode(data, 'PrettyPrint', true);
-fid = fopen('exports/scenarios/sim_lqr.json', 'w');
+fid = fopen('exports/scenarios/sim_lqi.json', 'w');
 fprintf(fid, '%s', json_str);
 fclose(fid);
 
