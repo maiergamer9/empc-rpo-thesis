@@ -35,13 +35,13 @@ Bc = [zeros(3,3); eye(3)];
 Q = diag([1e-2, 1e-2, 1e-2, ...        % position weights
           1e0, 1e0, 1e0]);          % velocity weights
 
-R = diag([1e8, 1e8, 1e8]);        % control weights  
+R = diag([1e4, 1e4, 1e4]);        % control weights  
 
 [K, P] = lqr_controller(Ad, Bd, Q, R);
 
 fprintf('LQR gain K computed.\n');
 fprintf('Closed-loop eigenvalues:\n');
-disp(eig(Ad - Bd*K));
+disp(abs(eig(Ad - Bd*K)));
 
 %% Initial Conditions
 

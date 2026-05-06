@@ -95,7 +95,7 @@ X_hist(:, 1) = X0;
 Xi_hist(:, 1) = Xi0;
 
 % Only activate integrator within 1 km of target
-integration_threshold = 1000; % metres
+integration_threshold = 1000; 
 
 for k = 1:n_steps-1
     x  = X_hist(:, k);
