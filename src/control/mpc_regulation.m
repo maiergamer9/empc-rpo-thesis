@@ -1,0 +1,77 @@
+function [u_opt, U_opt, X_pred] = mpc_regulation(x0, Ad, Bd, Q, R, P, N, u_max)
+% mpc_regulation.m
+% Solves the finite-horizon constrained tracking MPC (regulation to origin
+%  x = 0) problem at each timestep.
+% Equivalent to LQR with finite horizon and hard input constraints.
+%
+%   min   Σᵢ₌₀ᴺ⁻¹ (xᵢ'Qxᵢ + uᵢ'Ruᵢ) + xₙ'Pxₙ
+%    U
+%   s.t.  x(i+1) = Ad*x(i) + Bd*u(i)    (dynamics)
+%         -u_max ≤ u(i) ≤ u_max          (thrust limits)
+%         x(0)   = x0                    (initial condition)
+
+%   x0    - current state [6x1]
+%   Ad    - discrete state matrix [6x6]
+%   Bd    - discrete input matrix [6x3]
+%   Q     - state cost matrix [6x6]
+%   R     - control cost matrix [3x3]
+%   P     - terminal cost matrix [6x6]
+%   N     - prediction horizon
+%   u_max - symmetric thrust acceleration limit [m/s^2]
+%
+% Output:
+%   u_opt  - optimal first control input [3x1]
+%   U_opt  - full optimal input sequence [3N x 1]
+%   X_pred - predicted state trajectory [6 x N+1]
+%
+n_x = size(Ad, 1);
+n_u = size(Bd, 2);
+
+%% Prediciton matrices (for condensed QP, only optimize over u)
+Sx = zeros(n_x * N, n_x);
+Su = zeros(n_x * N, n_u * N);
+
+Ad_pow = eye(n_x);
+for i = 1:N
+    Ad_pow = Ad_pow * Ad;
+    Sx((i-1)*n_x+1 : i*n_x, :) = Ad_pow;
+    for j = 1:i
+        Su((i-1)*n_x+1 : i*n_x, (j-1)*n_u+1 : j*n_u) = ...
+            Ad^(i-j) * Bd;
+    end
+end
+
+%% Cost matrices 
+% Q, P at last stage, terminal constraint included in Qbar
+Qbar = blkdiag(kron(eye(N-1), Q), P);
+Rbar = kron(eye(N), R);
+
+%% Form QP matrices
+H = 2 * (Su' * Qbar * Su + Rbar);
+f = 2 * Su' * Qbar * Sx * x0;
+H = (H + H') / 2;   % symmetrize for numerical stability
+
+%% Input constraints
+lb = -u_max * ones(n_u * N, 1);
+ub =  u_max * ones(n_u * N, 1);
+
+%% Solve QP 
+opts = optimoptions('quadprog', 'Display', 'off');
+[U_opt, ~, exitflag] = quadprog(H, f, [], [], [], [], lb, ub, [], opts);
+
+if exitflag ~= 1
+    warning('MPC QP did not solve to optimality. exitflag = %d', exitflag);
+end
+
+%% first control input (1:3 vector for MPC)
+u_opt = U_opt(1:n_u);
+
+%% ── Reconstruct predicted trajectory ─────────────────────────────────────
+X_pred = zeros(n_x, N+1);
+X_pred(:, 1) = x0;
+for i = 1:N
+    u_i = U_opt((i-1)*n_u+1 : i*n_u); % 1:3, then 4:6, 7:9 ....
+    X_pred(:, i+1) = Ad * X_pred(:, i) + Bd * u_i;
+end
+
+end
