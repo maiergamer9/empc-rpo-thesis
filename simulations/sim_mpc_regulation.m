@@ -18,7 +18,7 @@ t       = (0:n_steps-1) * dt;
 %%  MPC PARAMETERS
 
 N     = 20;       % [-]      prediction horizon (initial guess)
-u_max = 3e-3;     % [m/s^2]  thrust limit 
+u_max = 1e-2;     % [m/s^2]  thrust limit 
 
 
 %%  CWH SS
@@ -47,7 +47,7 @@ R = diag([1e4,  1e4,  1e4]);
 
 
 %%  INITIAL CONDITIONS
-X0 = [500; 1000; 200; 0; 0; 0];
+X0 = [500; 5000; 200; 0; 0; 0];
 
 
 %%  INTEGRATE TARGET ORBIT (as before)
